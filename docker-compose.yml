@@ -1,0 +1,285 @@
+version: '3.9'
+
+# ============================================================================
+# Docker Compose Configuration for Kitium AI Services
+# Production-ready setup with proper networking, volumes, and health checks
+# ============================================================================
+
+services:
+  # ========================================================================
+  # PostgreSQL Database Service
+  # ========================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: kitium-postgres
+    hostname: postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kitium}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secure_password_change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-kitium_dev}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+
+    # Volume configuration
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+    # Port exposure (only in development/docker-compose)
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+    # Health check
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kitium}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+    # Networking
+    networks:
+      - kitium-network
+
+    # Security
+    security_opt:
+      - no-new-privileges:true
+
+    # Environment file
+    env_file:
+      - .env
+
+  # ========================================================================
+  # Redis Cache Service
+  # ========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: kitium-redis
+    hostname: redis
+    restart: unless-stopped
+
+    # Custom configuration
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_password_change_me}
+
+    # Volume configuration
+    volumes:
+      - redis_data:/data
+
+    # Port exposure (only in development)
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+    # Networking
+    networks:
+      - kitium-network
+
+    # Security
+    security_opt:
+      - no-new-privileges:true
+
+  # ========================================================================
+  # API Service
+  # ========================================================================
+  api:
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile
+      target: ${BUILD_TARGET:-production}
+      cache_from:
+        - type=registry,ref=api:latest
+
+    container_name: kitium-api
+    hostname: api
+    restart: unless-stopped
+
+    # Environment configuration
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3000
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-kitium}:${POSTGRES_PASSWORD:-secure_password_change_me}@postgres:5432/${POSTGRES_DB:-kitium_dev}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_password_change_me}@redis:6379/0
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+
+    # Port exposure
+    ports:
+      - "${API_PORT:-3000}:3000"
+
+    # Volume configuration
+    volumes:
+      - api_logs:/app/logs
+      - ./services/api/src:/app/src:cached
+
+    # Dependencies
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1024M
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+    # Networking
+    networks:
+      - kitium-network
+
+    # Security
+    security_opt:
+      - no-new-privileges:true
+
+    # Environment file
+    env_file:
+      - .env
+
+  # ========================================================================
+  # Web Service
+  # ========================================================================
+  web:
+    build:
+      context: ./services/web
+      dockerfile: Dockerfile
+      target: ${BUILD_TARGET:-production}
+      cache_from:
+        - type=registry,ref=web:latest
+
+    container_name: kitium-web
+    hostname: web
+    restart: unless-stopped
+
+    # Environment configuration
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://api:3000}
+
+    # Port exposure
+    ports:
+      - "${WEB_PORT:-3001}:3001"
+
+    # Volume configuration
+    volumes:
+      - web_logs:/app/.next/logs
+      - ./services/web/src:/app/src:cached
+
+    # Dependencies
+    depends_on:
+      - api
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+    # Networking
+    networks:
+      - kitium-network
+
+    # Security
+    security_opt:
+      - no-new-privileges:true
+
+    # Environment file
+    env_file:
+      - .env
+
+# ============================================================================
+# Volumes - Named volumes for data persistence
+# ============================================================================
+volumes:
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./volumes/postgres_data
+
+  redis_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./volumes/redis_data
+
+  api_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./volumes/api_logs
+
+  web_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./volumes/web_logs
+
+# ============================================================================
+# Networks - Custom bridge network for inter-service communication
+# ============================================================================
+networks:
+  kitium-network:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: kitium0
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1

@@ -1,0 +1,40 @@
+{
+  "name": "@kitiumai/docker",
+  "version": "1.0.0",
+  "description": "Enterprise-ready Docker package for Kitium AI services with multi-stage builds, Docker Compose, and complete networking setup",
+  "keywords": [
+    "docker",
+    "docker-compose",
+    "containerization",
+    "devops",
+    "enterprise",
+    "microservices"
+  ],
+  "license": "MIT",
+  "author": "Kitium AI",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kitium-ai/docker.git"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "scripts": {
+    "dev": "docker-compose -f docker-compose.yml -f docker-compose.dev.yml up",
+    "dev:build": "docker-compose -f docker-compose.yml -f docker-compose.dev.yml build",
+    "dev:down": "docker-compose -f docker-compose.yml -f docker-compose.dev.yml down",
+    "prod": "docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d",
+    "prod:build": "docker-compose -f docker-compose.yml -f docker-compose.prod.yml build",
+    "prod:down": "docker-compose -f docker-compose.yml -f docker-compose.prod.yml down",
+    "logs": "docker-compose logs -f",
+    "validate": "docker-compose config > /dev/null && echo 'Docker Compose configuration is valid'",
+    "clean": "docker-compose down -v && docker image prune -f",
+    "healthcheck": "docker-compose ps && echo '---' && docker-compose exec -T api curl -s http://localhost:3000/health || echo 'API health check failed'",
+    "test": "docker-compose run --rm api npm test",
+    "lint": "docker-compose run --rm api npm run lint"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "docker-compose": "^0.23.0"
+  }
+}

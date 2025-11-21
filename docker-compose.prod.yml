@@ -1,0 +1,72 @@
+version: '3.9'
+
+# ============================================================================
+# Production Environment Override
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# ============================================================================
+
+services:
+  postgres:
+    restart: always
+    environment:
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C --auth=scram-sha-256"
+    ports: []  # No port exposure in production
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+
+  redis:
+    restart: always
+    ports: []  # No port exposure in production
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD} --loglevel warning
+    volumes:
+      - redis_data:/data
+
+  api:
+    build:
+      context: ./services/api
+      target: production
+    restart: always
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: warn
+    ports:
+      - "3000:3000"
+    volumes:
+      - api_logs:/app/logs
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1024M
+        reservations:
+          cpus: '1'
+          memory: 512M
+      replicas: ${API_REPLICAS:-1}
+      update_config:
+        parallelism: 1
+        delay: 10s
+
+  web:
+    build:
+      context: ./services/web
+      target: production
+    restart: always
+    environment:
+      NODE_ENV: production
+    ports:
+      - "3001:3001"
+    volumes:
+      - web_logs:/app/.next/logs
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 512M
+        reservations:
+          cpus: '1'
+          memory: 256M
+      replicas: ${WEB_REPLICAS:-1}
+      update_config:
+        parallelism: 1
+        delay: 10s

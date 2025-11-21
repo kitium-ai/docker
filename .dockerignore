@@ -1,0 +1,72 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+README.md
+CHANGELOG.md
+docs/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.circleci/
+Jenkinsfile
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+.editorconfig
+
+# Build artifacts
+dist/
+build/
+.next/
+out/
+coverage/
+.pytest_cache/
+*.egg-info/
+
+# Dependencies caches (not needed in production)
+npm-debug.log
+yarn-error.log
+.npm
+.yarn
+
+# Node modules (will be installed in container)
+node_modules/
+
+# Test files
+tests/
+test/
+*.test.js
+*.spec.js
+*.test.ts
+*.spec.ts
+
+# Temporary files
+.cache/
+.tmp/
+tmp/
+
+# Docker files
+Dockerfile.dev
+docker-compose*.yml
+.dockerignore
+
+# Environment files
+.env.example
+.env.local
+.env.*.local
+
+# OS files
+Thumbs.db
+.DS_Store

@@ -17,20 +17,14 @@ Enterprise-ready Docker package for Kitium AI services with production-grade con
 ## Project Structure
 
 ```
-.
-├── services/
-│   ├── api/                    # Node.js Express API service
-│   │   ├── Dockerfile          # Multi-stage build
-│   │   ├── src/
-│   │   │   └── index.ts        # API entry point
-│   │   ├── package.json
-│   │   ├── tsconfig.json
-│   │   └── .dockerignore
-│   └── web/                    # Next.js web service
-│       ├── Dockerfile          # Multi-stage build
-│       ├── package.json
-│       ├── next.config.js
-│       └── .dockerignore
+tooling/docker/
+├── Dockerfile.template        # Reusable template for all services
+├── docker-compose.yml         # Base configuration
+├── docker-compose.dev.yml     # Development overrides
+├── docker-compose.prod.yml    # Production overrides
+├── .env.example               # Comprehensive environment template
+├── .dockerignore              # Docker build exclusions
+├── package.json               # NPM scripts for Docker management
 ├── scripts/
 │   ├── init-db.sql            # Database initialization
 │   ├── backup-database.sh     # Backup script
@@ -41,13 +35,44 @@ Enterprise-ready Docker package for Kitium AI services with production-grade con
 │   ├── redis_data/
 │   ├── api_logs/
 │   └── web_logs/
-├── docker-compose.yml         # Base configuration
-├── docker-compose.dev.yml     # Development overrides
-├── docker-compose.prod.yml    # Production overrides
-├── .env.example               # Environment template
-├── .dockerignore              # Docker build exclusions
-└── package.json               # NPM scripts
+└── README.md                  # This file
+
+apps/
+├── api/                       # Node.js Express API service
+│   ├── Dockerfile             # Multi-stage build (based on template)
+│   ├── src/
+│   │   └── index.ts           # API entry point
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── .dockerignore
+└── website/                   # Next.js web application
+    ├── Dockerfile             # Multi-stage build (based on template)
+    ├── package.json
+    ├── next.config.js
+    └── .dockerignore
 ```
+
+## Docker Setup Overview
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `Dockerfile.template` | Reusable template for creating service Dockerfiles |
+| `docker-compose.yml` | Base Docker Compose configuration |
+| `.env.example` | Comprehensive environment variable template |
+| `init-db.sql` | Database schema and initial data |
+
+### Dockerfile Strategy
+
+All service Dockerfiles are based on `Dockerfile.template` and include:
+
+- **Multi-stage builds** - Separate build and production stages
+- **Development target** - Hot reload with all dev dependencies
+- **Production target** - Minimal image with only runtime deps
+- **Workspace support** - Works with pnpm monorepo structure
+
+Each app (api, website) has its own `Dockerfile` in its directory that extends the template pattern.
 
 ## Quick Start
 
@@ -56,31 +81,41 @@ Enterprise-ready Docker package for Kitium AI services with production-grade con
 - Docker Engine 20.10+
 - Docker Compose 2.0+
 - Git
+- Node.js 20+ (for local development)
+- pnpm 9+ (for monorepo management)
 
 ### Installation
 
-1. **Clone the repository**
+1. **Navigate to KitiumAI root directory**
    ```bash
-   git clone https://github.com/kitium-ai/docker.git
-   cd docker
+   cd KitiumAI
+   cd tooling/docker
    ```
 
-2. **Create environment file**
+2. **Create environment file from template**
    ```bash
    cp .env.example .env
    # Edit .env with your configuration
+   # ⚠️  Change all default passwords in production!
    ```
 
 3. **Build and start services** (Development)
    ```bash
-   npm run dev:build
-   npm run dev
+   docker-compose -f docker-compose.yml -f docker-compose.dev.yml build
+   docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
    ```
 
 4. **Verify services are running**
    ```bash
+   docker-compose ps
    npm run healthcheck
    ```
+
+5. **Access services**
+   - API: http://localhost:3000
+   - Web: http://localhost:3001
+   - Database: localhost:5432 (psql)
+   - Redis: localhost:6379 (redis-cli)
 
 ## Available Commands
 
@@ -185,6 +220,46 @@ docker build --target development .
 # Production target (minimal image)
 docker build --target production .
 ```
+
+## Creating New Service Dockerfiles
+
+To add a Dockerfile for a new service:
+
+1. **Copy the template to your service directory**
+   ```bash
+   cp tooling/docker/Dockerfile.template apps/my-service/Dockerfile
+   ```
+
+2. **Customize the Dockerfile**
+   - Update the package filter name: `@kitium-ai/my-service`
+   - Adjust the health check endpoint as needed
+   - Update the entry point if not `dist/index.js`
+
+3. **Example for a new service**
+   ```bash
+   # For apps/my-service/
+   RUN pnpm --filter=@kitium-ai/my-service run build
+   CMD ["node", "apps/my-service/dist/index.js"]
+   ```
+
+4. **Add to docker-compose.yml**
+   ```yaml
+   my-service:
+     build:
+       context: ../..
+       dockerfile: ./apps/my-service/Dockerfile
+       target: ${BUILD_TARGET:-production}
+     container_name: kitium-my-service
+     ports:
+       - "${MY_SERVICE_PORT:-3002}:3002"
+     # ... rest of configuration
+   ```
+
+5. **Add environment variables to .env**
+   ```env
+   MY_SERVICE_PORT=3002
+   # ... other service-specific vars
+   ```
 
 ## Services
 

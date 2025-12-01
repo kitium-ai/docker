@@ -5,7 +5,11 @@
 # ============================================================================
 # Build Stage
 # ============================================================================
-FROM node:20-alpine AS builder
+ARG BASE_IMAGE=node:20-alpine
+ARG BUILD_IMAGE=${BASE_IMAGE}
+ARG RUNTIME_IMAGE=${BASE_IMAGE}
+
+FROM ${BUILD_IMAGE} AS builder
 
 WORKDIR /app
 
@@ -34,7 +38,7 @@ RUN pnpm --filter=@kitium-ai/${SERVICE_NAME} run build
 # ============================================================================
 # Production Runtime Stage
 # ============================================================================
-FROM node:20-alpine AS production
+FROM ${RUNTIME_IMAGE} AS production
 
 WORKDIR /app
 
@@ -80,6 +84,33 @@ EXPOSE ${PORT}
 # Start command (adjust as needed)
 ARG SERVICE_NAME=api
 CMD ["node", "apps/${SERVICE_NAME}/dist/index.js"]
+
+# ============================================================================
+# Distroless Runtime Stage (optional hardened image)
+# Build with: docker build --target production-distroless \
+#   --build-arg RUNTIME_DISTROLESS=gcr.io/distroless/nodejs20-debian12 \
+#   --build-arg SERVICE_NAME=api .
+# ============================================================================
+ARG RUNTIME_DISTROLESS=gcr.io/distroless/nodejs20-debian12
+FROM ${RUNTIME_DISTROLESS} AS production-distroless
+
+WORKDIR /app
+
+# Copy minimal runtime from production stage (node_modules + built assets)
+COPY --from=production /app /app
+
+USER 1001
+
+ENV NODE_ENV=production
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD ["/nodejs/bin/node", "-e", "require('http').get('http://localhost:${PORT:-3000}/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"]
+
+ARG PORT=3000
+EXPOSE ${PORT}
+
+ARG SERVICE_NAME=api
+CMD ["/nodejs/bin/node", "apps/${SERVICE_NAME}/dist/index.js"]
 
 # ============================================================================
 # Development Stage

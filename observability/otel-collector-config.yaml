@@ -1,0 +1,45 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+  jaeger:
+    protocols:
+      thrift_http:
+
+processors:
+  batch:
+  memory_limiter:
+    limit_mib: 400
+    spike_limit_mib: 100
+    check_interval: 5s
+
+exporters:
+  logging:
+    loglevel: info
+  otlphttp:
+    endpoint: https://otel.example.com
+    headers:
+      Authorization: "${OTEL_EXPORTER_AUTH_TOKEN}"
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    const_labels:
+      env: "local"
+
+service:
+  telemetry:
+    logs:
+      level: "info"
+  pipelines:
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [logging, otlphttp]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus]
+    traces:
+      receivers: [otlp, jaeger]
+      processors: [memory_limiter, batch]
+      exporters: [logging, otlphttp]

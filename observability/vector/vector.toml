@@ -1,0 +1,17 @@
+[sources.docker_logs]
+  type = "docker_logs"
+  include_containers = ["kitium-api","kitium-web","kitium-postgres","kitium-redis"]
+
+[sinks.console]
+  type = "console"
+  inputs = ["docker_logs"]
+  target = "stdout"
+  encoding.codec = "json"
+
+[sinks.otel]
+  type = "opentelemetry"
+  inputs = ["docker_logs"]
+  endpoint = "http://otel-collector:4318"
+  traces = { enabled = false }
+  metrics = { enabled = false }
+  logs = { default_namespace = "kitium" }

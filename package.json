@@ -1,6 +1,6 @@
 {
   "name": "@kitiumai/docker",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
   "description": "Enterprise-ready Docker package for Kitium AI services with multi-stage builds, Docker Compose, and complete networking setup",
   "main": "dist/index.js",

@@ -1,0 +1,22 @@
+image:
+  registry: ghcr.io/kitium-ai
+  tag: latest
+  pullPolicy: IfNotPresent
+
+env:
+  logLevel: info
+  nextPublicApiUrl: http://api.kitium.local
+  postgresPassword: changeme
+  redisPassword: changeme
+
+api:
+  replicaCount: 2
+
+web:
+  replicaCount: 2
+
+ingress:
+  enabled: true
+  className: nginx
+  host: kitium.local
+  tlsSecret: kitium-tls

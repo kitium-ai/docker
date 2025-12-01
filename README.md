@@ -13,6 +13,10 @@ Enterprise-ready Docker package for Kitium AI services with production-grade con
 ✅ **Comprehensive Monitoring** - Health checks, logging, and service status
 ✅ **Database Integration** - PostgreSQL with initialization scripts and backups
 ✅ **Caching Layer** - Redis for session and cache management
+✅ **Supply-chain Security** - SBOM generation, image signing, Conftest policies, and secret mounts
+✅ **Observability** - Vector log shipping, OpenTelemetry collector, Prometheus + Grafana dashboards
+✅ **Cloud Ready** - Kustomize bases and Helm chart with ingress, autoscaling, and TLS
+✅ **Developer Ergonomics** - Dev proxy with HTTPS, VS Code devcontainer, hot reload profiles
 
 ## Project Structure
 
@@ -105,6 +109,19 @@ Each app (api, website) has its own `Dockerfile` in its directory that extends t
    docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
    ```
 
+   Optional overlays:
+
+   ```bash
+   # Add observability sidecars
+   docker-compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.observability.yml up
+
+   # Enable secrets and Vault dev server
+   docker-compose -f docker-compose.yml -f docker-compose.security.yml up
+
+   # Local HTTPS proxy (requires mkcert certificates in ./secrets/mkcert)
+   docker-compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.devproxy.yml up
+   ```
+
 4. **Verify services are running**
    ```bash
    docker-compose ps
@@ -166,12 +183,36 @@ npm run clean
 # Backup database
 ./scripts/backup-database.sh
 
+# Point-in-time recovery WAL archive
+./scripts/backup-wal.sh
+
 # Restore from backup
 ./scripts/restore-database.sh backups/kitium_db_backup_*.sql.gz
+
+# Restore WAL archives
+./scripts/restore-wal.sh backups/wal_*.tar.gz
+
+# Run migrations with prisma (override via MIGRATION_COMMAND)
+./scripts/run-migrations.sh api
+
+# Load redacted QA data
+./scripts/seed-redacted-data.sh
 
 # Health check all services
 ./scripts/health-check.sh
 ```
+
+### Supply Chain and Compliance
+
+```bash
+# Generate SBOM for an image (requires syft)
+./scripts/generate-sbom.sh ghcr.io/kitium-ai/api:latest
+
+# Sign an image with cosign (COSIGN_KEY env optional for key-based signing)
+./scripts/sign-image.sh ghcr.io/kitium-ai/api:latest
+```
+
+CI/CD runs lint/test, Hadolint, Trivy, Syft, Cosign, and Conftest automatically via `.github/workflows/ci.yml`.
 
 ## Configuration
 
@@ -197,6 +238,12 @@ REDIS_PORT=6379
 # API Service
 API_PORT=3000
 CORS_ORIGIN=*
+
+# Observability / OTEL
+OTEL_EXPORTER_AUTH_TOKEN=replace-me
+
+# Dev proxy
+DEV_DOMAIN=kitium.localhost
 
 # Web Service
 WEB_PORT=3001
@@ -552,18 +599,44 @@ docker service ls
 docker service scale kitium_api=3
 ```
 
-### Kubernetes Deployment
+## Observability Stack
 
-Convert Docker Compose to Kubernetes manifests:
+- `docker-compose.observability.yml` adds Vector (log shipping), OpenTelemetry collector (traces/metrics/logs), Prometheus (scrapes cAdvisor + OTEL), and Grafana.
+- Configuration lives in `observability/` and can be customized for downstream APM backends.
 
-```bash
-# Install Kompose
-curl -L https://github.com/kubernetes/kompose/releases/download/v1.28.0/kompose-linux-amd64 -o kompose
-chmod +x kompose
+Access points:
 
-# Convert
-./kompose convert -f docker-compose.yml -o k8s/
-```
+- Prometheus: http://localhost:9090
+- Grafana: http://localhost:3003 (admin/admin)
+- OTLP endpoints: gRPC 4317 / HTTP 4318
+
+## Secrets, SBOMs, and Image Signing
+
+- `docker-compose.security.yml` mounts Docker secrets for API/DB/Redis and starts a Vault dev server for local experiments.
+- Use SOPS + age or cloud KMS to store files under `./secrets/`; referenced secrets are not committed.
+- SBOM + signing automation: `scripts/generate-sbom.sh` and `scripts/sign-image.sh` mirror the CI pipeline so artifacts can be uploaded to registries with provenance.
+
+## Kubernetes and Helm Deployments
+
+- `deploy/kubernetes` provides a Kustomize base (namespace, ConfigMap, Secret, StatefulSets/Deployments, Ingress, HPA) with overlays for dev/stage/prod.
+  ```bash
+  kubectl apply -k deploy/kubernetes/overlays/dev
+  ```
+- `deploy/helm` ships a lightweight chart mirroring Compose defaults.
+  ```bash
+  helm install kitium deploy/helm --set env.postgresPassword=$POSTGRES_PASSWORD --set env.redisPassword=$REDIS_PASSWORD
+  ```
+
+## Developer Experience
+
+- `.devcontainer/devcontainer.json` enables instant VS Code Dev Containers with Docker-in-Docker and pnpm preinstalled.
+- `docker-compose.devproxy.yml` brings Traefik with automatic HTTPS for `kitium.localhost` (compatible with mkcert certificates in `./secrets/mkcert`).
+- Continue using `docker-compose.dev.yml` for hot reload; buildx multi-arch builds are available via the CI workflow or `docker buildx build --platform linux/amd64,linux/arm64 ...` locally.
+
+## API References
+
+- API service base path: `${API_BASE_PATH:-/api}` with health endpoint at `/health`.
+- Web service exposed on `/` with proxy-friendly headers via Traefik/Ingress.
 
 ## Contributing
 

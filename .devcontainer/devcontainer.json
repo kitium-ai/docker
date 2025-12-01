@@ -1,0 +1,20 @@
+{
+  "name": "kitium-docker",
+  "image": "mcr.microsoft.com/devcontainers/base:debian",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "postCreateCommand": "pnpm install",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "editor.formatOnSave": true
+      },
+      "extensions": [
+        "ms-azuretools.vscode-docker",
+        "esbenp.prettier-vscode",
+        "eamodio.gitlens"
+      ]
+    }
+  }
+}

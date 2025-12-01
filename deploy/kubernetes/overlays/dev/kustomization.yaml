@@ -1,0 +1,9 @@
+bases:
+  - ../../base
+nameSuffix: -dev
+namespace: kitium
+configMapGenerator:
+  - name: kitium-config
+    behavior: merge
+    literals:
+      - NEXT_PUBLIC_API_URL=http://api-dev.kitium.local

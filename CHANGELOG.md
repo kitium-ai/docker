@@ -8,10 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Initial release planning
+- Observability stack with Vector, OpenTelemetry Collector, Prometheus, Grafana, and cAdvisor via docker-compose overlay
+- Supply-chain tooling: Syft SBOM generation, Cosign signing scripts, and CI workflow for lint/test/scan
+- Secrets overlay using Docker secrets and Vault dev server
+- Database lifecycle tooling for WAL archiving, migration runner, and redacted seeds
+- Kubernetes Kustomize bases with dev/stage/prod overlays plus Helm chart
+- Developer ergonomics: Traefik HTTPS dev proxy and VS Code devcontainer
 
 ### Changed
-- Initial setup
+- Dockerfile template now supports configurable base images and distroless runtime target for hardened builds
+- README expanded with observability, security, Kubernetes/Helm, and compliance workflows
 
 ### Deprecated
 - None

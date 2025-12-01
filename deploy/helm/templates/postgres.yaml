@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "kitium-docker.fullname" . }}-db
+stringData:
+  POSTGRES_PASSWORD: {{ .Values.env.postgresPassword }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "kitium-docker.fullname" . }}-postgres
+spec:
+  selector:
+    matchLabels:
+      app: {{ include "kitium-docker.name" . }}
+      tier: postgres
+  serviceName: postgres
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: {{ include "kitium-docker.name" . }}
+        tier: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          env:
+            - name: POSTGRES_USER
+              value: kitium
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kitium-docker.fullname" . }}-db
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: kitium_dev
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+spec:
+  selector:
+    app: {{ include "kitium-docker.name" . }}
+    tier: postgres
+  ports:
+    - port: 5432

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kitium-config
+  namespace: kitium
+  labels:
+    app.kubernetes.io/part-of: kitium
+    app.kubernetes.io/managed-by: kustomize
+    tier: shared
+data:
+  LOG_LEVEL: info
+  NEXT_PUBLIC_API_URL: http://api.kitium.local

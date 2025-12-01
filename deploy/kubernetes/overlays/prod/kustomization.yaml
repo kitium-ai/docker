@@ -1,0 +1,9 @@
+bases:
+  - ../../base
+nameSuffix: -prod
+namespace: kitium
+configMapGenerator:
+  - name: kitium-config
+    behavior: merge
+    literals:
+      - NEXT_PUBLIC_API_URL=https://api.kitium.ai

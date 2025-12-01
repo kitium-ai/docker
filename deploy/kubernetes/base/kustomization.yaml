@@ -1,0 +1,10 @@
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.yaml
+  - postgres.yaml
+  - redis.yaml
+  - api.yaml
+  - web.yaml
+  - ingress.yaml
+  - hpa.yaml

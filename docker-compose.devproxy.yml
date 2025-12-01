@@ -1,0 +1,41 @@
+version: '3.9'
+
+services:
+  traefik:
+    image: traefik:v3.1
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.dev.acme.tlschallenge=true
+      - --certificatesresolvers.dev.acme.email=dev@kitium.ai
+      - --certificatesresolvers.dev.acme.storage=/letsencrypt/acme.json
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./secrets/mkcert:/letsencrypt
+    networks:
+      - kitium-network
+
+  api:
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.api.rule=Host(`${DEV_DOMAIN:-kitium.localhost}`) && PathPrefix(`/api`)
+      - traefik.http.routers.api.entrypoints=websecure
+      - traefik.http.routers.api.tls.certresolver=dev
+      - traefik.http.services.api.loadbalancer.server.port=3000
+
+  web:
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.web.rule=Host(`${DEV_DOMAIN:-kitium.localhost}`)
+      - traefik.http.routers.web.entrypoints=websecure
+      - traefik.http.routers.web.tls.certresolver=dev
+      - traefik.http.services.web.loadbalancer.server.port=3001
+
+networks:
+  kitium-network:
+    external: true

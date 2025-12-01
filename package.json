@@ -1,20 +1,105 @@
 {
   "name": "@kitiumai/docker",
   "version": "1.0.0",
+  "type": "module",
   "description": "Enterprise-ready Docker package for Kitium AI services with multi-stage builds, Docker Compose, and complete networking setup",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.js",
+      "default": "./dist/types.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.d.ts.map",
+    "dist/**/*.js.map",
+    "docker-compose.yml",
+    "docker-compose.dev.yml",
+    "docker-compose.prod.yml",
+    "Dockerfile.template",
+    "scripts/**/*.sh",
+    "scripts/**/*.js",
+    "!dist/**/*.test.*",
+    "!dist/**/*.spec.*",
+    "README.md",
+    "CHANGELOG.md",
+    "SECURITY.md",
+    "DOCKER_STANDARDIZATION_GUIDE.md"
+  ],
   "keywords": [
     "docker",
     "docker-compose",
     "containerization",
+    "containers",
     "devops",
+    "deployment",
+    "orchestration",
     "enterprise",
-    "microservices"
+    "microservices",
+    "multi-stage-build",
+    "dockerfile",
+    "compose",
+    "kubernetes",
+    "k8s",
+    "ci-cd",
+    "continuous-integration",
+    "continuous-deployment",
+    "infrastructure",
+    "infrastructure-as-code",
+    "iac",
+    "automation",
+    "service-mesh",
+    "networking",
+    "volumes",
+    "health-check",
+    "monitoring",
+    "logging",
+    "production",
+    "development",
+    "staging",
+    "environment",
+    "nodejs",
+    "typescript",
+    "api",
+    "backend",
+    "frontend",
+    "fullstack",
+    "monorepo",
+    "turborepo",
+    "pnpm",
+    "npm",
+    "yarn",
+    "build-tools",
+    "developer-tools",
+    "devtools",
+    "productivity",
+    "kitium",
+    "kitiumai"
   ],
   "license": "MIT",
   "author": "Kitium AI",
   "repository": {
     "type": "git",
     "url": "https://github.com/kitium-ai/docker.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kitium-ai/docker/issues"
+  },
+  "homepage": "https://github.com/kitium-ai/docker#readme",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "engines": {
     "node": ">=16.0.0"
@@ -31,10 +116,43 @@
     "clean": "docker-compose down -v && docker image prune -f",
     "healthcheck": "docker-compose ps && echo '---' && docker-compose exec -T api curl -s http://localhost:3000/health || echo 'API health check failed'",
     "test": "docker-compose run --rm api npm test",
-    "lint": "docker-compose run --rm api npm run lint"
+    "lint": "docker-compose run --rm api npm run lint",
+    "build": "tsc -b",
+    "typecheck": "tsc -b --noEmit",
+    "lint:fix": "eslint . --fix",
+    "lint:all": "node --input-type=module -e \"import { lintAll } from '@kitiumai/scripts/lint'; await lintAll(false);\"",
+    "test:watch": "vitest watch",
+    "test:coverage": "node --input-type=module -e \"import { runTestsCoverage } from '@kitiumai/scripts/test'; await runTestsCoverage();\"",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write .",
+    "security:audit": "node --input-type=module -e \"import { auditDependencies } from '@kitiumai/scripts/security'; const summary = await auditDependencies({ severityThreshold: 'moderate' }); if ((summary.severityCounts?.critical || 0) + (summary.severityCounts?.high || 0) + (summary.severityCounts?.moderate || 0) > 0) { console.log(JSON.stringify(summary, null, 2)); process.exit(1); } console.log('No blocking vulnerabilities');\"",
+    "security:secrets": "node --input-type=module -e \"import { scanSecrets } from '@kitiumai/scripts/security'; const result = await scanSecrets({ configPath: '.gitleaks.toml', failOnFinding: true }); if (result.findings?.length) { console.error(JSON.stringify(result.findings, null, 2)); process.exit(1); } console.log('No secrets detected');\"",
+    "ci:verify": "pnpm run lint:all && pnpm run test:coverage && pnpm run typecheck",
+    "changeset": "ensure-changeset && changeset",
+    "version": "ensure-changeset && changeset version",
+    "publish:set-token": "set-npm-token",
+    "publish:setup": "set-npm-token",
+    "publish:check": "npm whoami --registry https://registry.npmjs.org || npm login --registry https://registry.npmjs.org",
+    "publish:login": "npm login --registry https://registry.npmjs.org",
+    "publish:package": "pnpm run publish:check && pnpm publish --access public --no-git-checks --registry https://registry.npmjs.org",
+    "publish:package:token": "pnpm run publish:setup && pnpm publish --access public --no-git-checks --registry https://registry.npmjs.org",
+    "publish:package:otp": "pnpm run publish:check && pnpm publish --access public --no-git-checks --registry https://registry.npmjs.org --otp",
+    "publish:dry-run": "pnpm publish --access public --no-git-checks --dry-run --registry https://registry.npmjs.org",
+    "publish:dry-run:token": "pnpm run publish:setup && pnpm publish --access public --no-git-checks --dry-run --registry https://registry.npmjs.org",
+    "release": "pnpm version && pnpm install --lockfile-only"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@kitiumai/error": "^2.0.1",
+    "@kitiumai/logger": "^2.0.1",
+    "@kitiumai/types": "^2.0.1",
+    "@kitiumai/utils-ts": "^2.0.2"
+  },
   "devDependencies": {
-    "docker-compose": "^0.23.0"
+    "docker-compose": "^0.23.0",
+    "@kitiumai/config": "^2.0.1",
+    "@kitiumai/lint": "^2.0.1",
+    "@kitiumai/scripts": "^1.0.0",
+    "@kitiumai/vitest-helpers": "^2.0.1",
+    "vitest": "^2.1.8"
   }
 }
